@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+# directory
+dataset/*
+build/*
+output/*
+
