@@ -2,10 +2,10 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 PROJECT(KittiFlow)
 
 ADD_DEFINITIONS(-std=c++11)
-SET(CMAKE_BUILD_TYPE "Debug")
+SET(CMAKE_BUILD_TYPE "Release")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fPIC")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fPIC ") #-fsingle-precision-constant
 else(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -O0 -fPIC")
 endif(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -15,7 +15,7 @@ src/main.cc
 )
 SET(INCLUDE_LIST
     ${PROJECT_SOURCE_DIR}/inc/
-    /usr/local/include
+    ${PROJECT_SOURCE_DIR}/dataset/
 )
 
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
@@ -24,6 +24,7 @@ SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 find_package(OpenCV REQUIRED)
 find_package (glog REQUIRED)
+find_package(PNG REQUIRED)
 
 MESSAGE(STATUS "\nThis is PROJECT name: " ${PROJECT_NAME})
 MESSAGE(STATUS "This is PROJECT_SOURCE_DIR: " ${PROJECT_SOURCE_DIR})
@@ -41,6 +42,8 @@ ADD_EXECUTABLE(KittiFlow ${SRC_LIST})
 INCLUDE_DIRECTORIES(
     ${INCLUDE_LIST}
     ${OpenCV_INCLUDE_DIRS}
+    ${PNG_INCLUDE_DIR}
+    /usr/local/include
     )
 
 link_directories(
@@ -52,4 +55,5 @@ TARGET_LINK_LIBRARIES(KittiFlow
 -lglog
 -lgflags
 ${OpenCV_LIBS}
+${PNG_LIBRARY}
 )
