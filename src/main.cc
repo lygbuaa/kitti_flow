@@ -48,7 +48,7 @@ int main(int argc, char* argv[]){
     signal(SIGQUIT, signal_handler);//3
     signal(SIGABRT, signal_handler);//6
     signal(SIGKILL, signal_handler);//9
-    signal(SIGSEGV, signal_handler);//11
+    // signal(SIGSEGV, signal_handler);//11
     signal(SIGTERM, signal_handler);//15
 
     is_cuda_avaliable();
