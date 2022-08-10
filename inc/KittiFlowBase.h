@@ -202,8 +202,10 @@ public:
 
     std::vector<float> calc_flow_error(const std::shared_ptr<FlowImage>& gt_ptr, const FLOW_WRAPPER_t& flow_wrapper){
         std::shared_ptr<FlowImage> F_orig = std::get<0>(flow_wrapper);
-        std::shared_ptr<FlowImage> F_ipol(F_orig);
+        /* F_ipol should copy data from F_orig, should not share data ptr */
+        std::shared_ptr<FlowImage> F_ipol(new FlowImage(*F_orig));
         F_ipol -> interpolateBackground();
+
         std::shared_ptr<IntegerImage> O_map = std::get<1>(flow_wrapper);
         std::vector<float> errors = flowErrorsOutlier(gt_ptr, F_orig, F_ipol, O_map);
         return errors;
