@@ -17,7 +17,9 @@ private:
 public:
     SparseLK(const std::string& img_path, const std::string& gt_path)
     : KittiFlowBase(img_path, gt_path)
-    {}
+    {
+        LOG(INFO) << "SparseLK init.";
+    }
 
     ~SparseLK(){}
 
@@ -95,7 +97,7 @@ public:
         cv::Mat this_img = cv::imread(img_pair["this_img"]);
         // cv::Mat gt_img = cv::imread(img_pair["gt_img"]);
 
-        cv::Mat prev_gray, this_gray, gt_gray;
+        cv::Mat prev_gray, this_gray;
         cv::cvtColor(prev_img, prev_gray, cv::COLOR_BGR2GRAY);
         cv::cvtColor(this_img, this_gray, cv::COLOR_BGR2GRAY);
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <opencv2/opencv.hpp>
+#include <eigen3/Eigen/Dense>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <dirent.h>
@@ -254,6 +255,36 @@ public:
         cv::waitKey(2000);
         cv::imshow("kitti", gt_img);
         cv::waitKey(2000);
+    }
+
+    void work_load(std::vector<int> seeds){
+        // Eigen::MatrixXf m1 = Eigen::MatrixXf::Random(4, 4);
+        // Eigen::MatrixXf m2 = Eigen::MatrixXf::Random(4, 4);
+        // Eigen::MatrixXf m3 = Eigen::MatrixXf::Constant(4, 4, 0.0f);
+        Eigen::Matrix4f m1 = Eigen::Matrix4f::Random();
+        Eigen::Matrix4f m2 = Eigen::Matrix4f::Random();
+        Eigen::Matrix4f m3 = Eigen::Matrix4f::Constant(0.0f);
+
+        for(int i=0; i<seeds.size(); i++){
+            if(seeds[i]>0 && seeds[i]<seeds.size()/2){
+                m3 += m1*seeds[i];
+            }else{
+                m3 -= m2*seeds[i];
+            }
+        }
+    }
+
+    void test_eigen(const int N = 10000){
+        const uint64_t start_us = current_micros();
+        std::vector<int> seeds;
+        // seeds.reserve(N);
+        for(int i=0; i<N; i++){
+            seeds.push_back(rand()%N - N/2);
+        }
+        const uint64_t end1_us = current_micros();
+        work_load(seeds);
+        const uint64_t end2_us = current_micros();
+        LOG(INFO) << "runtime(us): gen_seeds = " << (end1_us - start_us) << ", work_load = " << (end2_us - end1_us);
     }
 
 };

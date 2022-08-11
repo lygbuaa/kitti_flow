@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <opencv2/opencv.hpp>
 #include "SparseLK.h"
+#include "DenseFB.h"
 
 DEFINE_string(kitti_img_path, "./dataset/data_scene_flow/training/image_2", "kitti input path.");
 DEFINE_string(kitti_gt_path, "./dataset/data_scene_flow/training/flow_noc", "kitti groundtruth path.");
@@ -52,7 +53,7 @@ int main(int argc, char* argv[]){
     signal(SIGTERM, signal_handler);//15
 
     is_cuda_avaliable();
-    kittflow::SparseLK algo = kittflow::SparseLK(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
+    kittflow::DenseFB algo = kittflow::DenseFB(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
     // algo.test_dataset();
     algo.run_all(false);
 
