@@ -13,13 +13,12 @@ class DenseDIS : public KittiFlowBase
 {
 private:
     uint64_t average_us_ = 0;
-    cv::Ptr<cv::DenseOpticalFlow> algo_ = nullptr;
+    cv::Ptr<cv::DenseOpticalFlow> algo_;
 
 public:
     DenseDIS(const std::string& img_path, const std::string& gt_path)
     : KittiFlowBase(img_path, gt_path)
     {
-        LOG(INFO) << "DenseDIS init.";
         /*
         enum  	{
             PRESET_ULTRAFAST = 0,
@@ -28,6 +27,7 @@ public:
         }
         */
         algo_ = cv::DISOpticalFlow::create(cv::DISOpticalFlow::PRESET_MEDIUM);
+        LOG(INFO) << "DenseDIS init: " << algo_->getDefaultName();
     }
 
     ~DenseDIS(){}
@@ -80,20 +80,20 @@ public:
         while(true){
             std::map<std::string, std::string> img_pair = get_img_pair();
             if(img_pair.empty()){
-                average_us_ /= counter;
-                LOG(INFO) << "all " << counter << " tests done, average_us: " << average_us_;
                 break;
-            }
+            }     
+            ++ counter;
+            if(counter > 150) break;
+
             std::vector<float> errors = run_once(counter, img_pair, enable_visual);
             // print_error_report(errors);
-
-            ++ counter;
+            assert(errors.size() == 12);
             for(int i=0; i<errors.size(); ++i){
                 errors_acc[i] += errors[i];
             }
-
-            // if(counter > 10) break;
         }
+        average_us_ /= counter;
+        LOG(INFO) << "all " << counter << " tests done, average_us: " << average_us_;
         print_error_report(errors_acc);
     }
 
@@ -105,6 +105,16 @@ public:
         cv::Mat prev_gray, this_gray;
         cv::cvtColor(prev_img, prev_gray, cv::COLOR_BGR2GRAY);
         cv::cvtColor(this_img, this_gray, cv::COLOR_BGR2GRAY);
+        assert(!prev_gray.empty());
+        assert(!this_gray.empty());
+        const cv::Size original_size = this_gray.size();
+
+        /* image shape change can cause Segmentation fault, but not the full reason. */
+        /* Segmentation fault backtrace: cv::parallel_for_(cv::Range const&, cv::ParallelLoopBody const&, double) */
+        if(original_size.height!=FLAGS_kitti_img_height || original_size.width!=FLAGS_kitti_img_width){
+            cv::resize(prev_gray, prev_gray, cv::Size(FLAGS_kitti_img_width, FLAGS_kitti_img_height));
+            cv::resize(this_gray, this_gray, cv::Size(FLAGS_kitti_img_width, FLAGS_kitti_img_height));
+        }
 
         cv::Mat flow(this_gray.size(), CV_32FC2);
 
@@ -123,8 +133,12 @@ public:
         algo_ -> calc(prev_gray, this_gray, flow);
         average_us_ += (current_micros() - start_us);
 
+        if(original_size.height!=FLAGS_kitti_img_height || original_size.width!=FLAGS_kitti_img_width){
+            cv::resize(flow, flow, original_size);
+        }
+
         std::shared_ptr<FlowImage> gt_ptr = load_flow_gt(img_pair["gt_img"]);
-        FLOW_WRAPPER_t flow_wrapper = wrap_flow(this_gray.rows, this_gray.cols, flow, gt_ptr);
+        FLOW_WRAPPER_t flow_wrapper = wrap_flow(original_size.height, original_size.width, flow, gt_ptr);
         std::vector<float> errors = calc_flow_error(gt_ptr, flow_wrapper);
 
         if(enable_visual){
@@ -145,7 +159,7 @@ public:
 
             cv::namedWindow("kitti", cv::WINDOW_NORMAL);
             cv::imshow("kitti", bgr);
-            cv::waitKey(1000);
+            cv::waitKey(300);
             cv::imwrite(gen_output_path(img_pair["this_img"]), bgr);
         }
 
