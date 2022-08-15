@@ -7,7 +7,7 @@ SET(CMAKE_BUILD_TYPE "Debug")
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fPIC ") #-fsingle-precision-constant
 else(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -fPIC -rdynamic")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -O0 -fPIC -rdynamic -export-dynamic")
 endif(CMAKE_BUILD_TYPE STREQUAL "Release")
 
 SET(SRC_LIST
@@ -56,6 +56,7 @@ link_directories(
 TARGET_LINK_LIBRARIES(KittiFlow
 -lglog
 -lgflags
+-ldl
 ${OpenCV_LIBS}
 ${PNG_LIBRARY}
 )

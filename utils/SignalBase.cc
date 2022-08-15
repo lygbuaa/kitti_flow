@@ -2,8 +2,10 @@
 #include "SignalBase.h"
 
 void SignalBase::CatchSignal(){
-    signal(SIGABRT, QuitHandler);// 6
-    signal(SIGTERM, QuitHandler);// 15
+    signal(SIGINT, QuitHandler); //2
+    // signal(SIGABRT, QuitHandler);// 6
+    // signal(SIGSEGV, QuitHandler);// 15
+    // signal(SIGTERM, QuitHandler);// 15
 
     /* catch segment fault */
     struct sigaction sa;
