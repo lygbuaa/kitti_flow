@@ -83,7 +83,7 @@ public:
                 break;
             }     
             ++ counter;
-            if(counter > 150) break;
+            // if(counter > 150) break;
 
             std::vector<float> errors = run_once(counter, img_pair, enable_visual);
             // print_error_report(errors);

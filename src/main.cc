@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <signal.h>
+#include <SignalBase.h>
 #include <opencv2/opencv.hpp>
 #include "SparseLK.h"
 #include "DenseFB.h"
@@ -46,12 +47,13 @@ int main(int argc, char* argv[]){
     FLAGS_colorlogtostderr = true;
     google::InitGoogleLogging(argv[0]);
 
-    signal(SIGINT, signal_handler); //2
-    signal(SIGQUIT, signal_handler);//3
-    signal(SIGABRT, signal_handler);//6
-    signal(SIGKILL, signal_handler);//9
-    // signal(SIGSEGV, signal_handler);//11
-    signal(SIGTERM, signal_handler);//15
+    // signal(SIGINT, signal_handler); //2
+    // signal(SIGQUIT, signal_handler);//3
+    // signal(SIGABRT, signal_handler);//6
+    // signal(SIGKILL, signal_handler);//9
+    // // signal(SIGSEGV, signal_handler);//11
+    // signal(SIGTERM, signal_handler);//15
+    SignalBase::CatchSignal();
 
     is_cuda_avaliable();
     kittflow::DenseDIS algo = kittflow::DenseDIS(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
