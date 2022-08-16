@@ -8,11 +8,12 @@
 #include "SparseLK.h"
 #include "DenseFB.h"
 #include "DenseDIS.h"
+#include "VpiLK.h"
 
 DEFINE_string(kitti_img_path, "./dataset/data_scene_flow/training/image_2", "kitti input path.");
 DEFINE_string(kitti_gt_path, "./dataset/data_scene_flow/training/flow_noc", "kitti groundtruth path.");
-DEFINE_uint32(kitti_img_width, 1242, "input image width.");
-DEFINE_uint32(kitti_img_height, 375, "input image height.");
+DEFINE_uint32(kitti_img_width, 1242, "input image width. 000000 ~ 000154");
+DEFINE_uint32(kitti_img_height, 375, "input image height. 000000 ~ 000154");
 DEFINE_string(output_img_path, "./output", "output path.");
 DEFINE_string(glog_path, "./logs", "output path.");
 
@@ -56,7 +57,7 @@ int main(int argc, char* argv[]){
     SignalBase::CatchSignal();
 
     is_cuda_avaliable();
-    kittflow::DenseDIS algo = kittflow::DenseDIS(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
+    kittflow::VpiLK algo = kittflow::VpiLK(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
     // algo.test_dataset();
     algo.run_all(false);
 

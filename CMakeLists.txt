@@ -16,6 +16,7 @@ utils/SignalBase.cc
 )
 SET(INCLUDE_LIST
     ${PROJECT_SOURCE_DIR}/inc/
+    ${PROJECT_SOURCE_DIR}/nv/
     ${PROJECT_SOURCE_DIR}/dataset/
     ${PROJECT_SOURCE_DIR}/utils/
 )
@@ -27,6 +28,7 @@ SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 find_package(OpenCV REQUIRED)
 find_package (glog REQUIRED)
 find_package(PNG REQUIRED)
+find_package(vpi REQUIRED)
 
 MESSAGE(STATUS "\nThis is PROJECT name: " ${PROJECT_NAME})
 MESSAGE(STATUS "This is PROJECT_SOURCE_DIR: " ${PROJECT_SOURCE_DIR})
@@ -38,6 +40,7 @@ MESSAGE(STATUS "This is SRC_LIST: " ${SRC_LIST})
 MESSAGE(STATUS "This is INCLUDE_LIST: " ${INCLUDE_LIST})
 MESSAGE(STATUS "This is opencv inlcude: " ${OpenCV_INCLUDE_DIRS})
 MESSAGE(STATUS "This is opencv lib: " ${OpenCV_LIBS})
+MESSAGE(STATUS "This is vpi: " ${vpi})
 
 ADD_EXECUTABLE(KittiFlow ${SRC_LIST})
 
@@ -57,6 +60,7 @@ TARGET_LINK_LIBRARIES(KittiFlow
 -lglog
 -lgflags
 -ldl
+vpi
 ${OpenCV_LIBS}
 ${PNG_LIBRARY}
 )
