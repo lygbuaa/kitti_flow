@@ -22,7 +22,18 @@ namespace kittflow
 class VpiDense : public KittiFlowBase
 {
 public:
-    /* dense opitcal flow only support nvenc backend */
+    /* dense opitcal flow only support nvenc backend 
+    typedef enum
+    {
+        VPI_BACKEND_CPU     = (1ULL << 0), 
+        VPI_BACKEND_CUDA    = (1ULL << 1), 
+        VPI_BACKEND_PVA     = (1ULL << 2), 
+        VPI_BACKEND_VIC     = (1ULL << 3), 
+        VPI_BACKEND_NVENC   = (1ULL << 4), 
+        VPI_BACKEND_OFA     = (1ULL << 5), 
+        VPI_BACKEND_INVALID = (1ULL << 15) 
+    } VPIBackend;
+    */
     static constexpr VPIBackend backend_ = VPI_BACKEND_NVENC;
     static constexpr VPIOpticalFlowQuality quality_ = VPI_OPTICAL_FLOW_QUALITY_HIGH;
 
