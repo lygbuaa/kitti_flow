@@ -9,6 +9,7 @@
 #include "DenseFB.h"
 #include "DenseDIS.h"
 #include "VpiLK.h"
+#include "VpiDense.h"
 
 DEFINE_string(kitti_img_path, "./dataset/data_scene_flow/training/image_2", "kitti input path.");
 DEFINE_string(kitti_gt_path, "./dataset/data_scene_flow/training/flow_noc", "kitti groundtruth path.");
@@ -57,7 +58,8 @@ int main(int argc, char* argv[]){
     SignalBase::CatchSignal();
 
     is_cuda_avaliable();
-    kittflow::VpiLK algo = kittflow::VpiLK(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
+    kittflow::VpiDense algo = kittflow::VpiDense(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
+		// kittflow::VpiLK algo = kittflow::VpiLK(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
     // algo.test_dataset();
     algo.run_all(false);
 
