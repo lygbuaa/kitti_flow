@@ -53,14 +53,14 @@ private:
     VPIImage this_image_ = nullptr;
     VPIPyramid pyrPrevFrame_ = nullptr;
     VPIPyramid pyrCurFrame_ = nullptr;
-    // VPIArray prevFeatures_ = nullptr;
-    // VPIArray curFeatures_ = nullptr;
-    // VPIArray status_ = nullptr;
     VPIPayload optflow_ = nullptr;
-    // VPIArray scores_    = nullptr;
     VPIPayload harris_  = nullptr;
     VPIOpticalFlowPyrLKParams lkParams_;
     VPIHarrisCornerDetectorParams harrisParams_;
+    VPIArray prevFeatures_ = nullptr;
+    VPIArray curFeatures_ = nullptr;
+    VPIArray status_ = nullptr;
+    VPIArray scores_    = nullptr;
 
 public:
     VpiLK(const std::string& img_path, const std::string& gt_path)
@@ -103,6 +103,10 @@ public:
         harrisParams_.sensitivity    = 0.01;
 
         CHECK_STATUS(vpiCreateHarrisCornerDetector(backend_, FLAGS_kitti_img_width, FLAGS_kitti_img_height, &harris_));
+        CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &prevFeatures_));
+        CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &curFeatures_));
+        // CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_U8, 0, &status_));
+        CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_U32, 0, &scores_));
     }
 
     void release_vpi(){
@@ -111,13 +115,12 @@ public:
         vpiPayloadDestroy(optflow_);
         vpiImageDestroy(pre_image_);
         vpiImageDestroy(this_image_);
-        vpiPayloadDestroy(optflow_);
         vpiPyramidDestroy(pyrPrevFrame_);
         vpiPyramidDestroy(pyrCurFrame_);
-        // vpiArrayDestroy(prevFeatures_);
-        // vpiArrayDestroy(curFeatures_);
+        vpiArrayDestroy(prevFeatures_);
+        vpiArrayDestroy(curFeatures_);
         // vpiArrayDestroy(status_);
-        // vpiArrayDestroy(scores_);
+        vpiArrayDestroy(scores_);
     }
 
     std::string gen_output_path(const std::string input_img_path){
@@ -203,22 +206,18 @@ public:
         cv::cvtColor(this_img, this_gray, cv::COLOR_BGR2GRAY);
         vpiImageCreateWrapperOpenCVMat(prev_gray, 0, &pre_image_);
         vpiImageCreateWrapperOpenCVMat(this_gray, 0, &this_image_);
-        // Create input and output arrays
-        VPIArray prevFeatures = nullptr;
-        VPIArray curFeatures = nullptr;
+        /* status should be cleared every cycle, since kitti images are discontinuous,
+           if input is continuous video, global status will be ok.
+        */
         VPIArray status = nullptr;
-        VPIArray scores = nullptr;
-        CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &prevFeatures));
-        CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &curFeatures));
         CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_U8, 0, &status));
-        CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_U32, 0, &scores));
 
         //Gather feature points from first frame using Harris Corners on CPU.
         {
             // Convert input to grayscale to conform with harris corner detector restrictions
-            CHECK_STATUS(vpiSubmitHarrisCornerDetector(stream_, backend_, harris_, pre_image_, prevFeatures, scores, &harrisParams_));
+            CHECK_STATUS(vpiSubmitHarrisCornerDetector(stream_, backend_, harris_, pre_image_, prevFeatures_, scores_, &harrisParams_));
             CHECK_STATUS(vpiStreamSync(stream_));
-            SortKeypoints(prevFeatures, scores, MAX_KEYPOINTS);
+            SortKeypoints(prevFeatures_, scores_, MAX_KEYPOINTS);
         }
 
         const uint64_t start_us = current_micros();
@@ -226,7 +225,7 @@ public:
         CHECK_STATUS(vpiSubmitGaussianPyramidGenerator(stream_, backend_, pre_image_, pyrPrevFrame_, VPI_BORDER_CLAMP));
         CHECK_STATUS(vpiSubmitGaussianPyramidGenerator(stream_, backend_, this_image_, pyrCurFrame_, VPI_BORDER_CLAMP));
         // Estimate the features' position in current frame given their position in previous frame
-        CHECK_STATUS(vpiSubmitOpticalFlowPyrLK(stream_, 0, optflow_, pyrPrevFrame_, pyrCurFrame_, prevFeatures, curFeatures, status, &lkParams_));
+        CHECK_STATUS(vpiSubmitOpticalFlowPyrLK(stream_, 0, optflow_, pyrPrevFrame_, pyrCurFrame_, prevFeatures_, curFeatures_, status, &lkParams_));
         // Wait for processing to finish.
         CHECK_STATUS(vpiStreamSync(stream_));
         average_us_ += (current_micros() - start_us);
@@ -235,7 +234,8 @@ public:
         std::shared_ptr<FlowImage> gt_ptr = load_flow_gt(img_pair["gt_img"]);
         std::vector<cv::Point2f> p0, p1;
         std::vector<unsigned char> vstatus;
-        retrieve_results(prevFeatures, curFeatures, status, p0, p1, vstatus);
+        retrieve_results(prevFeatures_, curFeatures_, status, p0, p1, vstatus);
+        vpiArrayDestroy(status);
 
         // return std::vector<float>(12, 0.0f);
         FLOW_WRAPPER_t flow_wrapper = wrap_flow(this_gray.rows, this_gray.cols, p0, p1, vstatus, gt_ptr);
