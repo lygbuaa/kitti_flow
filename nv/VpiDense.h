@@ -15,6 +15,8 @@
 #include <vpi/algo/ConvertImageFormat.h>
 
 DECLARE_string(output_img_path);
+DEFINE_uint32(vpi_img_width, 1248, "input image width. should be 16*N");
+DEFINE_uint32(vpi_img_height, 376, "input image height. should be 4*N");
 
 namespace kittflow
 {
@@ -35,7 +37,7 @@ public:
     } VPIBackend;
     */
     static constexpr VPIBackend backend_ = VPI_BACKEND_NVENC;
-    static constexpr VPIOpticalFlowQuality quality_ = VPI_OPTICAL_FLOW_QUALITY_HIGH;
+    static constexpr VPIOpticalFlowQuality quality_ = VPI_OPTICAL_FLOW_QUALITY_MEDIUM;
 
     #define CHECK_STATUS(STMT)                                      \
         do                                                          \
@@ -64,8 +66,8 @@ private:
     VPIImage imgCurFrameBL_   = NULL;
 
     VPIImage imgMotionVecBL_  = NULL;
-    int mvWidth_  = 0;
-    int mvHeight_ = 0;
+    int32_t mvWidth_  = 0;
+    int32_t mvHeight_ = 0;
 
 public:
     VpiDense(const std::string& img_path, const std::string& gt_path)
@@ -88,24 +90,26 @@ public:
         // The temporary image buffer below will store the intermediate NV12/PL representation.
         // Define the image formats we'll use throughout this sample.
 
-        CHECK_STATUS(vpiImageCreate(FLAGS_kitti_img_width, FLAGS_kitti_img_height, VPI_IMAGE_FORMAT_NV12_ER, 0, &imgPrevFrameTmp_));
-        CHECK_STATUS(vpiImageCreate(FLAGS_kitti_img_width, FLAGS_kitti_img_height, VPI_IMAGE_FORMAT_NV12_ER, 0, &imgCurFrameTmp_));
+        CHECK_STATUS(vpiImageCreate(FLAGS_vpi_img_width, FLAGS_vpi_img_height, VPI_IMAGE_FORMAT_NV12_ER, 0, &imgPrevFrameTmp_));
+        CHECK_STATUS(vpiImageCreate(FLAGS_vpi_img_width, FLAGS_vpi_img_height, VPI_IMAGE_FORMAT_NV12_ER, 0, &imgCurFrameTmp_));
 
         // Now create the final block-linear buffer that'll be used as input to the
         // algorithm.
-        CHECK_STATUS(vpiImageCreate(FLAGS_kitti_img_width, FLAGS_kitti_img_height, VPI_IMAGE_FORMAT_NV12_ER_BL, 0, &imgPrevFrameBL_));
-        CHECK_STATUS(vpiImageCreate(FLAGS_kitti_img_width, FLAGS_kitti_img_height, VPI_IMAGE_FORMAT_NV12_ER_BL, 0, &imgCurFrameBL_));
+        CHECK_STATUS(vpiImageCreate(FLAGS_vpi_img_width, FLAGS_vpi_img_height, VPI_IMAGE_FORMAT_NV12_ER_BL, 0, &imgPrevFrameBL_));
+        CHECK_STATUS(vpiImageCreate(FLAGS_vpi_img_width, FLAGS_vpi_img_height, VPI_IMAGE_FORMAT_NV12_ER_BL, 0, &imgCurFrameBL_));
 
         // Motion vector image width and height, On NVENC, dimensions must be 1/4 of curImg, align to be multiple of 4
-        mvWidth_  = (FLAGS_kitti_img_width + 3) / 4;
-        mvHeight_ = (FLAGS_kitti_img_height + 3) / 4;
+        mvWidth_  = (FLAGS_vpi_img_width + 3) / 4;
+        mvHeight_ = (FLAGS_vpi_img_height + 3) / 4;
+        // mvWidth_  = FLAGS_vpi_img_width;
+        // mvHeight_ = FLAGS_vpi_img_height;
 
         // Create the output motion vector buffer
         CHECK_STATUS(vpiImageCreate(mvWidth_, mvHeight_, VPI_IMAGE_FORMAT_2S16_BL, 0, &imgMotionVecBL_));
         LOG(INFO) << "OpticalFlowDense output size: " << mvWidth_ << ", " << mvHeight_;
 
         // Create Dense Optical Flow payload to be executed on the given backend
-        CHECK_STATUS(vpiCreateOpticalFlowDense(backend_, FLAGS_kitti_img_width, FLAGS_kitti_img_height, VPI_IMAGE_FORMAT_NV12_ER_BL, quality_, &payload_));
+        CHECK_STATUS(vpiCreateOpticalFlowDense(backend_, FLAGS_vpi_img_width, FLAGS_vpi_img_height, VPI_IMAGE_FORMAT_NV12_ER_BL, quality_, &payload_));
         LOG(INFO) << "vpiCreate OpticalFlowDense on backend: " << (int)backend_;
     }
 
@@ -164,7 +168,7 @@ public:
             }
             ++ counter;
             /* only test images with 1242*375 resolution */
-            if(counter > 10) break;
+            // if(counter > 155) break;
 
             std::vector<float> errors = run_once(counter, img_pair, enable_visual);
             // print_error_report(errors);
@@ -186,7 +190,10 @@ public:
     std::vector<float> run_once(unsigned int counter, std::map<std::string, std::string>& img_pair, bool enable_visual=false, bool enable_calc=true){
         cv::Mat prev_img = cv::imread(img_pair["prev_img"]);
         cv::Mat this_img = cv::imread(img_pair["this_img"]);
-        // cv::Mat gt_img = cv::imread(img_pair["gt_img"]);
+        const cv::Size original_size = this_img.size();
+
+        cv::resize(prev_img, prev_img, cv::Size(FLAGS_vpi_img_width, FLAGS_vpi_img_height));
+        cv::resize(this_img, this_img, cv::Size(FLAGS_vpi_img_width, FLAGS_vpi_img_height));
 
         // cv::Mat prev_gray, this_gray;
         // cv::cvtColor(prev_img, prev_gray, cv::COLOR_BGR2GRAY);
@@ -202,13 +209,13 @@ public:
         CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_VIC, imgPrevFrameTmp_, imgPrevFrameBL_, nullptr));
         CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_CUDA, imgCurFramePL_, imgCurFrameTmp_, nullptr));
         CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_VIC, imgCurFrameTmp_, imgCurFrameBL_, nullptr));
+        // CHECK_STATUS(vpiStreamSync(stream_));
         CHECK_STATUS(vpiSubmitOpticalFlowDense(stream_, backend_, payload_, imgPrevFrameBL_, imgCurFrameBL_, imgMotionVecBL_));
 
         // Wait for processing to finish.
         CHECK_STATUS(vpiStreamSync(stream_));
         average_us_ += (current_micros() - start_us);
-
-        cv::Mat flow(this_img.size(), CV_32FC2);
+        cv::Mat flow(original_size, CV_32FC2);
         std::vector<float> errors(12, 0.0f);
 
         if(enable_calc){
@@ -225,10 +232,10 @@ public:
 
             // Image not needed anymore, we can unlock it.
             CHECK_STATUS(vpiImageUnlock(imgMotionVecBL_));
-            cv::resize(flow_small, flow, flow.size());
+            cv::resize(flow_small, flow, original_size);
 
             std::shared_ptr<FlowImage> gt_ptr = load_flow_gt(img_pair["gt_img"]);
-            FLOW_WRAPPER_t flow_wrapper = wrap_flow(this_img.rows, this_img.cols, flow, gt_ptr);
+            FLOW_WRAPPER_t flow_wrapper = wrap_flow(original_size.height, original_size.width, flow, gt_ptr);
             errors = calc_flow_error(gt_ptr, flow_wrapper);
         }
 
