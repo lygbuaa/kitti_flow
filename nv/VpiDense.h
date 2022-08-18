@@ -116,6 +116,13 @@ public:
     void release_vpi(){
         vpiStreamDestroy(stream_);
         vpiPayloadDestroy(payload_);
+        vpiImageDestroy(imgPrevFramePL_);
+        vpiImageDestroy(imgPrevFrameTmp_);
+        vpiImageDestroy(imgPrevFrameBL_);
+        vpiImageDestroy(imgCurFramePL_);
+        vpiImageDestroy(imgCurFrameTmp_);
+        vpiImageDestroy(imgCurFrameBL_);
+        vpiImageDestroy(imgMotionVecBL_);
     }
 
     std::string gen_output_path(const std::string input_img_path){

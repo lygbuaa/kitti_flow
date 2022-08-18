@@ -10,6 +10,8 @@
 #include "DenseDIS.h"
 #include "VpiLK.h"
 #include "VpiDense.h"
+#include "ThroughPutFactory.h"
+#include "VpiDenseVideo.h"
 
 DEFINE_string(kitti_img_path, "./dataset/data_scene_flow/training/image_2", "kitti input path.");
 DEFINE_string(kitti_gt_path, "./dataset/data_scene_flow/training/flow_noc", "kitti groundtruth path.");
@@ -17,6 +19,9 @@ DEFINE_uint32(kitti_img_width, 1242, "input image width. 000000 ~ 000154: 1242")
 DEFINE_uint32(kitti_img_height, 375, "input image height. 000000 ~ 000154: 375");
 DEFINE_string(output_img_path, "./output", "output path.");
 DEFINE_string(glog_path, "./logs", "output path.");
+DEFINE_uint32(stream_number, 1, "number of threads");
+DEFINE_string(video_file_path, "./dataset/traffic.mp4", "video file path");
+DEFINE_bool(enable_visual, false, "set true to enable visual");
 
 void signal_handler(int sig_num){
 	std::cout << "\n@q@ --> it's quit signal: " << sig_num << ", see you later.\n";
@@ -58,10 +63,11 @@ int main(int argc, char* argv[]){
     SignalBase::CatchSignal();
 
     is_cuda_avaliable();
-    kittflow::VpiDense algo = kittflow::VpiDense(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
-		// kittflow::VpiLK algo = kittflow::VpiLK(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
-    // algo.test_dataset();
-    algo.run_all(false);
+    // kittflow::VpiDense algo = kittflow::VpiDense(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
+    // algo.run_all(false);
 
-   return 0;
+    kittflow::ThroughtPutFactory<kittflow::VpiDenseVideo> algo = kittflow::ThroughtPutFactory<kittflow::VpiDenseVideo>(FLAGS_video_file_path, FLAGS_stream_number, FLAGS_enable_visual);
+    algo.run_streams();
+
+    return 0;
 }

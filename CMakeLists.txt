@@ -60,6 +60,7 @@ TARGET_LINK_LIBRARIES(KittiFlow
 -lglog
 -lgflags
 -ldl
+-lpthread
 vpi
 ${OpenCV_LIBS}
 ${PNG_LIBRARY}
