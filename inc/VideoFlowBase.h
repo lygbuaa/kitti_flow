@@ -57,7 +57,7 @@ public:
         return true;
     }
 
-    virtual void run_loop(){
+    virtual bool warm_up(){
         frame_id_ = 0;
         cv::Mat img;
         /* we need one frame to init stream */
@@ -66,15 +66,38 @@ public:
         }else{
             LOG(FATAL) << "stream init failed!";
         }
+
+        /* warm-up stage, this is required by https://docs.nvidia.com/vpi/algo_performance.html */
+        const uint64_t start_us = current_micros();
+        LOG(INFO) << "warm-up start @" << start_us;
+        while(next_image(img)){
+            run_once(img);
+            frame_id_++;
+            LOG_EVERY_N(INFO, 100) << "warm-up frame-" << frame_id_;
+        }
+        const uint64_t end_us = current_micros();
+        double dt = (end_us-start_us)*1e-6;
+        double latency = dt/frame_id_;
+        LOG(INFO) << "warm-up done, total frame: " << frame_id_ << ", elapsed sec: " << dt << ", latency: " << latency;
+        return true;
+    }
+
+    virtual void run_loop(){
+        frame_id_ = 0;
+        cv::Mat img;
+        video_cap_.set(cv::CAP_PROP_POS_FRAMES, 0);
+
         const uint64_t start_us = current_micros();
         LOG(INFO) << "loop start @" << start_us;
         while(next_image(img)){
             run_once(img);
             frame_id_++;
-            LOG_EVERY_N(INFO, 100) << "process frame-" << frame_id_ << ", tick: " <<  current_micros();
+            LOG_EVERY_N(INFO, 100) << "process frame-" << frame_id_;
         }
         const uint64_t end_us = current_micros();
-        LOG(INFO) << "loop end, total frame: " << frame_id_ << ", elapsed us: " << (end_us-start_us);
+        double dt = (end_us-start_us)*1e-6;
+        double latency = dt/frame_id_;
+        LOG(INFO) << "loop end, total frame: " << frame_id_ << ", elapsed sec: " << dt << ", latency: " << latency;
     }
 
     uint32_t get_frame_num() const {

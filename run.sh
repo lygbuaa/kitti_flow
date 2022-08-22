@@ -7,7 +7,7 @@ KITTI_GT_PATH="--kitti_gt_path=./dataset/data_scene_flow/training/flow_noc"
 OUTPUT_PATH="--output_img_path=./output"
 GLOG_PATH="--glog_path=./logs"
 VIDEO_PATH="--video_file_path=./dataset/traffic.mp4"
-STREAM_NUM="--stream_number=1"
+STREAM_NUM="--stream_number=8"
 ENABLE_VISUAL="--enable_visual=false"
 BIN_PATH=./build/bin/
 

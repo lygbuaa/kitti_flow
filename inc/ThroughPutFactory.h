@@ -35,6 +35,14 @@ public:
                 std::chrono::steady_clock::now()).time_since_epoch()).count();
     }
 
+    void init_streams(){
+        for(int i=0; i<stream_number_; i++){
+            auto obj = objects_[i];
+            obj -> warm_up();
+            LOG(INFO) << "init stream-" << i;
+        }
+    }
+
     void run_streams(){
         const uint64_t start_us = current_micros();
         LOG(INFO) << "streams start @" << start_us;

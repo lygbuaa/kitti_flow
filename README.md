@@ -22,3 +22,10 @@ valid(u,v)  = (bool)I(u,v,3);
 1) sudo apt install libnvvpi2 vpi2-dev vpi2-samples
 2) if apt unavaliable, download vpi-dev-2.0.14-aarch64-l4t.deb vpi-lib-2.0.14-aarch64-l4t.deb in sdk_manager.
 3) maybe NVENC hardware with dense optical flow support not present on orin,  refer to https://forums.developer.nvidia.com/t/nvenc-hardware-with-dense-optical-flow-support-not-present/224194
+
+# Jetson Clock Frequency and Power Settings
+https://docs.nvidia.com/vpi/algo_performance.html
+
+sudo ./clocks.sh --max      # maximize the clock frequencies
+sudo ./clocks.sh --restore  # restore the clock frequencies
+sudo jetson_clocks --show   # show config

@@ -67,6 +67,7 @@ int main(int argc, char* argv[]){
     // algo.run_all(false);
 
     kittflow::ThroughtPutFactory<kittflow::VpiDenseVideo> algo = kittflow::ThroughtPutFactory<kittflow::VpiDenseVideo>(FLAGS_video_file_path, FLAGS_stream_number, FLAGS_enable_visual);
+    algo.init_streams();
     algo.run_streams();
 
     return 0;
