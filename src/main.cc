@@ -12,9 +12,12 @@
 #include "VpiDense.h"
 #include "ThroughPutFactory.h"
 #include "VpiDenseVideo.h"
+#include "CvStereoSgbm.h"
 
-DEFINE_string(kitti_img_path, "./dataset/data_scene_flow/training/image_2", "kitti input path.");
-DEFINE_string(kitti_gt_path, "./dataset/data_scene_flow/training/flow_noc", "kitti groundtruth path.");
+DEFINE_string(kitti_img2_path, "./dataset/data_scene_flow/training/image_2", "kitti left image path.");
+DEFINE_string(kitti_img3_path, "./dataset/data_scene_flow/training/image_3", "kitti right image path.");
+DEFINE_string(kitti_flow_gt_path, "./dataset/data_scene_flow/training/flow_noc", "kitti optical flow groundtruth path.");
+DEFINE_string(kitti_stereo_gt_path, "./dataset/data_scene_flow/training/disp_noc_0", "kitti stereo disparity groundtruth path.");
 DEFINE_uint32(kitti_img_width, 1242, "input image width. 000000 ~ 000154: 1242");
 DEFINE_uint32(kitti_img_height, 375, "input image height. 000000 ~ 000154: 375");
 DEFINE_string(output_img_path, "./output", "output path.");
@@ -63,12 +66,15 @@ int main(int argc, char* argv[]){
     SignalBase::CatchSignal();
 
     is_cuda_avaliable();
-    // kittflow::VpiDense algo = kittflow::VpiDense(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
+    // kittflow::VpiDense algo = kittflow::VpiDense(FLAGS_kitti_img2_path, FLAGS_kitti_flow_gt_path);
     // algo.run_all(false);
 
-    kittflow::ThroughtPutFactory<kittflow::VpiDenseVideo> algo = kittflow::ThroughtPutFactory<kittflow::VpiDenseVideo>(FLAGS_video_file_path, FLAGS_stream_number, FLAGS_enable_visual);
-    algo.init_streams();
-    algo.run_streams();
+    // kittflow::ThroughtPutFactory<kittflow::VpiDenseVideo> algo = kittflow::ThroughtPutFactory<kittflow::VpiDenseVideo>(FLAGS_video_file_path, FLAGS_stream_number, FLAGS_enable_visual);
+    // algo.init_streams();
+    // algo.run_streams();
+
+		kittflow::CvStereoSgbm algo = kittflow::CvStereoSgbm(FLAGS_kitti_img2_path, FLAGS_kitti_img3_path, FLAGS_kitti_stereo_gt_path);
+		algo.run_all(false);
 
     return 0;
 }
