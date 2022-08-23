@@ -13,6 +13,7 @@
 #include "ThroughPutFactory.h"
 #include "VpiDenseVideo.h"
 #include "CvStereoSgbm.h"
+#include "VpiStereo.h"
 
 DEFINE_string(kitti_img2_path, "./dataset/data_scene_flow/training/image_2", "kitti left image path.");
 DEFINE_string(kitti_img3_path, "./dataset/data_scene_flow/training/image_3", "kitti right image path.");
@@ -73,8 +74,8 @@ int main(int argc, char* argv[]){
     // algo.init_streams();
     // algo.run_streams();
 
-		kittflow::CvStereoSgbm algo = kittflow::CvStereoSgbm(FLAGS_kitti_img2_path, FLAGS_kitti_img3_path, FLAGS_kitti_stereo_gt_path);
-		algo.run_all(false);
+		kittflow::VpiStereo algo = kittflow::VpiStereo(FLAGS_kitti_img2_path, FLAGS_kitti_img3_path, FLAGS_kitti_stereo_gt_path);
+		algo.run_all(true);
 
     return 0;
 }
