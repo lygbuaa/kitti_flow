@@ -1,3 +1,8 @@
+# dependency
+1. sudo apt install libeigen3-dev
+2. sudo apt install libpng++-dev
+3. build && install glog: https://blog.csdn.net/qq_22634949/article/details/101718879
+
 # kitti_flow
 
 1) 'noc' refers to non-occluded regions, ie, regions for which the matching correspondence is inside the image domain. 'occ' refers to all image regions for which ground truth could be measured (including regions which map to points outside the image domain in the other view). for ranking the methods and for the main table all image regions are considered (corresponding to the 'occ' folders).

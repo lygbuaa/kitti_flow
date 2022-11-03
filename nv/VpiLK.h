@@ -103,8 +103,8 @@ public:
         harrisParams_.sensitivity    = 0.01;
 
         CHECK_STATUS(vpiCreateHarrisCornerDetector(backend_, FLAGS_kitti_img_width, FLAGS_kitti_img_height, &harris_));
-        CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &prevFeatures_));
-        CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT, 0, &curFeatures_));
+        CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT_F32, 0, &prevFeatures_));
+        CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_KEYPOINT_F32, 0, &curFeatures_));
         // CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_U8, 0, &status_));
         CHECK_STATUS(vpiArrayCreate(MAX_HARRIS_CORNERS, VPI_ARRAY_TYPE_U32, 0, &scores_));
     }
@@ -292,15 +292,15 @@ public:
         const VPIArrayBufferAOS &aosCurFeatures = curFeaturesData.buffer.aos;
         const VPIArrayBufferAOS &aosStatus      = statusData.buffer.aos;
 
-        const VPIKeypoint *pCurFeatures = (VPIKeypoint *)aosCurFeatures.data;
+        const VPIKeypointF32 *pCurFeatures = (VPIKeypointF32 *)aosCurFeatures.data;
         const uint8_t *pStatus          = (uint8_t *)aosStatus.data;
 
-        const VPIKeypoint *pPrevFeatures;
+        const VPIKeypointF32 *pPrevFeatures;
         if (prevFeatures)
         {
             VPIArrayData prevFeaturesData;
             CHECK_STATUS(vpiArrayLockData(prevFeatures, VPI_LOCK_READ, VPI_ARRAY_BUFFER_HOST_AOS, &prevFeaturesData));
-            pPrevFeatures = (VPIKeypoint *)prevFeaturesData.buffer.aos.data;
+            pPrevFeatures = (VPIKeypointF32 *)prevFeaturesData.buffer.aos.data;
         }
         else
         {
@@ -363,10 +363,10 @@ public:
         // keep the only 'max' indexes.
         indices.resize(std::min<size_t>(indices.size(), max));
 
-        VPIKeypoint *kptData = reinterpret_cast<VPIKeypoint *>(aosKeypoints.data);
+        VPIKeypointF32 *kptData = reinterpret_cast<VPIKeypointF32 *>(aosKeypoints.data);
 
         // reorder the keypoints to keep the first 'max' with highest scores.
-        std::vector<VPIKeypoint> kpt;
+        std::vector<VPIKeypointF32> kpt;
         std::transform(indices.begin(), indices.end(), std::back_inserter(kpt),
                        [kptData](int idx) { return kptData[idx]; });
         std::copy(kpt.begin(), kpt.end(), kptData);
