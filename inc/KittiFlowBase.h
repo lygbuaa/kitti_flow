@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <libgen.h>
 #include <chrono>
+#include <omp.h>
 #include "devkit_scene_flow/devkit/cpp/io_flow.h"
 #include "devkit_scene_flow/devkit/cpp/io_integer.h"
 
@@ -258,6 +259,10 @@ public:
     }
 
     void work_load(std::vector<int> seeds){
+        int th_rank = omp_get_thread_num();
+        int total_threads = omp_get_num_threads();
+        LOG(INFO) << "total_threads: " << total_threads << ", th_rank: " << th_rank;
+
         // Eigen::MatrixXf m1 = Eigen::MatrixXf::Random(4, 4);
         // Eigen::MatrixXf m2 = Eigen::MatrixXf::Random(4, 4);
         // Eigen::MatrixXf m3 = Eigen::MatrixXf::Constant(4, 4, 0.0f);
@@ -265,13 +270,19 @@ public:
         Eigen::Matrix4f m2 = Eigen::Matrix4f::Random();
         Eigen::Matrix4f m3 = Eigen::Matrix4f::Constant(0.0f);
 
+# pragma omp parallel
+{
+        # pragma omp for // reduction (+:m3 )
         for(int i=0; i<seeds.size(); i++){
             if(seeds[i]>0 && seeds[i]<seeds.size()/2){
+                # pragma omp critical
                 m3 += m1*seeds[i];
             }else{
+                # pragma omp critical
                 m3 -= m2*seeds[i];
             }
         }
+}
     }
 
     void test_eigen(const int N = 10000){
@@ -281,10 +292,25 @@ public:
         for(int i=0; i<N; i++){
             seeds.push_back(rand()%N - N/2);
         }
+        omp_set_num_threads(4);
+        LOG(INFO) << "omp_get_max_threads: " << omp_get_max_threads();
         const uint64_t end1_us = current_micros();
+        # pragma omp parallel num_threads(8)
         work_load(seeds);
         const uint64_t end2_us = current_micros();
         LOG(INFO) << "runtime(us): gen_seeds = " << (end1_us - start_us) << ", work_load = " << (end2_us - end1_us);
+    }
+
+    void test_openmp(int th_num=4){
+        omp_set_num_threads(16);
+        # pragma omp parallel
+        {
+            int th_rank = omp_get_thread_num();
+            int total_threads = omp_get_num_threads();
+            LOG(INFO) << "total_threads: " << total_threads << ", th_rank: " << th_rank;
+            std::chrono::milliseconds dura(1000);
+        }
+
     }
 
 };

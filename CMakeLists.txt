@@ -1,4 +1,4 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
 PROJECT(KittiFlow)
 
 ADD_DEFINITIONS(-std=c++11)
@@ -57,6 +57,14 @@ TARGET_LINK_LIBRARIES(KittiFlow
 -lglog
 -lgflags
 -ldl
+# -fopenmp
 ${OpenCV_LIBS}
 ${PNG_LIBRARY}
 )
+
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+  target_link_libraries(${PROJECT_NAME}
+    # OpenMP::OpenMP_CXX is an imported target with INTERFACE_**
+    OpenMP::OpenMP_CXX )
+endif()

@@ -58,7 +58,9 @@ int main(int argc, char* argv[]){
     is_cuda_avaliable();
     kittflow::DenseDIS algo = kittflow::DenseDIS(FLAGS_kitti_img_path, FLAGS_kitti_gt_path);
     // algo.test_dataset();
-    algo.run_all(false);
+    // algo.run_all(false);
+    algo.test_openmp();
+    algo.test_eigen(1000000);
 
    return 0;
 }
