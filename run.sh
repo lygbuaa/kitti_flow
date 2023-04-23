@@ -3,7 +3,9 @@
 TARGET=$1
 
 kitti_img2_path="--kitti_img2_path=./dataset/data_scene_flow/training/image_2"
+kitti_img3_path="--kitti_img2_path=./dataset/data_scene_flow/training/image_3"
 kitti_flow_gt_path="--kitti_flow_gt_path=./dataset/data_scene_flow/training/flow_noc"
+kitti_stereo_gt_path="--kitti_flow_gt_path=./dataset/data_scene_flow/training/disp_noc_0"
 OUTPUT_PATH="--output_img_path=./output"
 GLOG_PATH="--glog_path=./logs"
 VIDEO_PATH="--video_file_path=./dataset/traffic.mp4"

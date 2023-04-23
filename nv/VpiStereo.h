@@ -39,7 +39,7 @@ public:
         VPI_BACKEND_INVALID = (1ULL << 15)
     } VPIBackend;
     */
-    static constexpr VPIBackend backend_ = VPI_BACKEND_CUDA;
+    static constexpr uint64_t backend_ = (VPI_BACKEND_OFA | VPI_BACKEND_PVA | VPI_BACKEND_VIC);
     static constexpr int conf_threshold_ = 100;
 
     #define CHECK_STATUS(STMT)                                      \
@@ -62,8 +62,8 @@ private:
     VPIPayload stereo_      = NULL;
     VPIImage inLeft_        = NULL;
     VPIImage inRight_       = NULL;
-    // VPIImage tmpLeft_       = NULL;
-    // VPIImage tmpRight_      = NULL;
+    VPIImage tmpLeft_        = NULL;
+    VPIImage tmpRight_        = NULL;
     VPIImage stereoLeft_    = NULL;
     VPIImage stereoRight_   = NULL;
     VPIImage disparity_     = NULL;
@@ -76,7 +76,8 @@ private:
       windowSize: On CUDA backend this is ignored. A 9x7 window is used instead.
      */
     VPIStereoDisparityEstimatorCreationParams stereoParams_;
-    VPIImageFormat stereoFormat_    = VPI_IMAGE_FORMAT_Y16_ER;
+    VPIImageFormat stereoFormat_    = VPI_IMAGE_FORMAT_Y16_ER_BL;
+    VPIImageFormat tmpFormat_    = VPI_IMAGE_FORMAT_Y16_ER;
     VPIImageFormat disparityFormat_ = VPI_IMAGE_FORMAT_S16;
 
 public:
@@ -99,12 +100,15 @@ public:
         int outputWidth  = FLAGS_kitti_img_width;
         int outputHeight = FLAGS_kitti_img_height;
 
-        CHECK_STATUS(vpiStreamCreate(backend_, &stream_));
+        // CHECK_STATUS(vpiStreamCreate(backend_, &stream_));
+        /* 0 open all backends */
+        CHECK_STATUS(vpiStreamCreate(0, &stream_));
         // Format conversion parameters needed for input pre-processing
         CHECK_STATUS(vpiInitConvertImageFormatParams(&convParams_));
         // Set algorithm parameters to be used. Only values what differs from defaults will be overwritten.
         CHECK_STATUS(vpiInitStereoDisparityEstimatorCreationParams(&stereoParams_));
-        stereoParams_.maxDisparity = ((FLAGS_kitti_img_width/8) + 15) & -16;;
+        //stereoParams_.maxDisparity = ((FLAGS_kitti_img_width/8) + 15) & -16;;
+        stereoParams_.maxDisparity = 128; //On OFA or OFA+PVA+VIC backend, maxDisparity must be 128 or 256.
         LOG(INFO) << "maxDisparity: " << stereoParams_.maxDisparity;
 
         // Create the payload for Stereo Disparity algorithm.
@@ -113,6 +117,8 @@ public:
         // Create the image where the disparity map will be stored.
         CHECK_STATUS(vpiImageCreate(outputWidth, outputHeight, disparityFormat_, 0, &disparity_));
         // Create the input stereo images
+        CHECK_STATUS(vpiImageCreate(inputWidth, inputHeight, tmpFormat_, 0, &tmpLeft_));
+        CHECK_STATUS(vpiImageCreate(inputWidth, inputHeight, tmpFormat_, 0, &tmpRight_));
         CHECK_STATUS(vpiImageCreate(stereoWidth, stereoHeight, stereoFormat_, 0, &stereoLeft_));
         CHECK_STATUS(vpiImageCreate(stereoWidth, stereoHeight, stereoFormat_, 0, &stereoRight_));
         CHECK_STATUS(vpiImageCreate(inputWidth, inputHeight, VPI_IMAGE_FORMAT_U16, 0, &confidenceMap_));
@@ -243,13 +249,22 @@ public:
         CHECK_STATUS(vpiImageCreateWrapperOpenCVMat(right_img, 0, &inRight_));
 
         const uint64_t start_us = current_micros();
+        LOG(INFO) << "create input done.";
         // Convert opencv input to grayscale format using CUDA
-        CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_CUDA, inLeft_, stereoLeft_, &convParams_));
-        CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_CUDA, inRight_, stereoRight_, &convParams_));
+        CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_CUDA, inLeft_, tmpLeft_, &convParams_));
+        CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_CUDA, inRight_, tmpRight_, &convParams_));
+        LOG(INFO) << "create tmp done.";
+
+        CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_VIC, tmpLeft_, stereoLeft_, &convParams_));
+        CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_VIC, tmpRight_, stereoRight_, &convParams_));
+        LOG(INFO) << "create stereo done.";
+
         // Submit it with the input and output images
         CHECK_STATUS(vpiSubmitStereoDisparityEstimator(stream_, backend_, stereo_, stereoLeft_, stereoRight_, disparity_, confidenceMap_, NULL));
+        LOG(INFO) << "submit stereo done.";
         // Wait for processing to finish.
         CHECK_STATUS(vpiStreamSync(stream_));
+        LOG(INFO) << "stream sync done.";
 
         average_us_ += (current_micros() - start_us);
         std::vector<float> errors(12, 0.0f);

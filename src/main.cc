@@ -67,15 +67,15 @@ int main(int argc, char* argv[]){
     SignalBase::CatchSignal();
 
     is_cuda_avaliable();
-    kittflow::VpiDense algo = kittflow::VpiDense(FLAGS_kitti_img2_path, FLAGS_kitti_flow_gt_path);
-    algo.run_all(false);
+    //kittflow::VpiDense algo = kittflow::VpiDense(FLAGS_kitti_img2_path, FLAGS_kitti_flow_gt_path);
+    //algo.run_all(false);
 
     // kittflow::ThroughtPutFactory<kittflow::VpiDenseVideo> algo = kittflow::ThroughtPutFactory<kittflow::VpiDenseVideo>(FLAGS_video_file_path, FLAGS_stream_number, FLAGS_enable_visual);
     // algo.init_streams();
     // algo.run_streams();
 
-    // kittflow::VpiStereo algo = kittflow::VpiStereo(FLAGS_kitti_img2_path, FLAGS_kitti_img3_path, FLAGS_kitti_stereo_gt_path);
-    // algo.run_all(true);
+    kittflow::VpiStereo algo = kittflow::VpiStereo(FLAGS_kitti_img2_path, FLAGS_kitti_img3_path, FLAGS_kitti_stereo_gt_path);
+    algo.run_all(false);
 
     return 0;
 }
