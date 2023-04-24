@@ -1,3 +1,7 @@
+/*
+* refer to /opt/nvidia/vpi2/samples/02-stereo_disparity
+*/
+
 #pragma once
 
 #include <numeric>
@@ -24,6 +28,8 @@ DECLARE_uint32(kitti_img_height);
 namespace kittflow
 {
 
+#define USING_BACKEND 0
+
 class VpiStereo : public KittiStereoBase
 {
 public:
@@ -39,7 +45,11 @@ public:
         VPI_BACKEND_INVALID = (1ULL << 15)
     } VPIBackend;
     */
-    static constexpr uint64_t backend_ = (VPI_BACKEND_OFA | VPI_BACKEND_PVA | VPI_BACKEND_VIC);
+#if USING_BACKEND == 0
+    static constexpr uint64_t backend_ = (VPI_BACKEND_OFA); // | VPI_BACKEND_PVA | VPI_BACKEND_VIC);
+#elif USING_BACKEND == 1
+    static constexpr uint64_t backend_ = VPI_BACKEND_CUDA;
+#endif
     static constexpr int conf_threshold_ = 100;
 
     #define CHECK_STATUS(STMT)                                      \
@@ -76,16 +86,22 @@ private:
       windowSize: On CUDA backend this is ignored. A 9x7 window is used instead.
      */
     VPIStereoDisparityEstimatorCreationParams stereoParams_;
+
+#if USING_BACKEND == 0
     VPIImageFormat stereoFormat_    = VPI_IMAGE_FORMAT_Y16_ER_BL;
-    VPIImageFormat tmpFormat_    = VPI_IMAGE_FORMAT_Y16_ER;
+    VPIImageFormat disparityFormat_ = VPI_IMAGE_FORMAT_S16_BL;
+#elif USING_BACKEND == 1
+    VPIImageFormat stereoFormat_    = VPI_IMAGE_FORMAT_Y16_ER;
     VPIImageFormat disparityFormat_ = VPI_IMAGE_FORMAT_S16;
+#endif
+    VPIImageFormat tmpFormat_    = VPI_IMAGE_FORMAT_Y16_ER;
 
 public:
     VpiStereo(const std::string& left_img_path, const std::string& right_img_path, const std::string& gt_path)
     : KittiStereoBase(left_img_path, right_img_path, gt_path)
     {
         init_vpi();
-        LOG(INFO) << "vpi version: " << vpiGetVersion();
+        LOG(INFO) << "vpi version: " << vpiGetVersion() << ", backend: " << backend_;
     }
 
     ~VpiStereo(){
@@ -108,7 +124,11 @@ public:
         // Set algorithm parameters to be used. Only values what differs from defaults will be overwritten.
         CHECK_STATUS(vpiInitStereoDisparityEstimatorCreationParams(&stereoParams_));
         //stereoParams_.maxDisparity = ((FLAGS_kitti_img_width/8) + 15) & -16;;
-        stereoParams_.maxDisparity = 128; //On OFA or OFA+PVA+VIC backend, maxDisparity must be 128 or 256.
+        /* 
+        * On OFA or OFA+PVA+VIC backend, maxDisparity must be 128 or 256. 
+        * 256 lead to VPI_ERROR_INTERNAL: maximum bound exceeded during bounded integer assignment.
+        */
+        stereoParams_.maxDisparity = 256; 
         LOG(INFO) << "maxDisparity: " << stereoParams_.maxDisparity;
 
         // Create the payload for Stereo Disparity algorithm.
@@ -121,7 +141,12 @@ public:
         CHECK_STATUS(vpiImageCreate(inputWidth, inputHeight, tmpFormat_, 0, &tmpRight_));
         CHECK_STATUS(vpiImageCreate(stereoWidth, stereoHeight, stereoFormat_, 0, &stereoLeft_));
         CHECK_STATUS(vpiImageCreate(stereoWidth, stereoHeight, stereoFormat_, 0, &stereoRight_));
+
+#if USING_BACKEND == 0
+        confidenceMap_ = NULL;
+#else
         CHECK_STATUS(vpiImageCreate(inputWidth, inputHeight, VPI_IMAGE_FORMAT_U16, 0, &confidenceMap_));
+#endif
 
     }
 
@@ -135,8 +160,8 @@ public:
 
       vpiImageDestroy(inLeft_);
       vpiImageDestroy(inRight_);
-      // vpiImageDestroy(tmpLeft_);
-      // vpiImageDestroy(tmpRight_);
+      vpiImageDestroy(tmpLeft_);
+      vpiImageDestroy(tmpRight_);
       vpiImageDestroy(stereoLeft_);
       vpiImageDestroy(stereoRight_);
       vpiImageDestroy(confidenceMap_);
@@ -249,28 +274,27 @@ public:
         CHECK_STATUS(vpiImageCreateWrapperOpenCVMat(right_img, 0, &inRight_));
 
         const uint64_t start_us = current_micros();
-        LOG(INFO) << "create input done.";
         // Convert opencv input to grayscale format using CUDA
+#if USING_BACKEND == 0
         CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_CUDA, inLeft_, tmpLeft_, &convParams_));
         CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_CUDA, inRight_, tmpRight_, &convParams_));
-        LOG(INFO) << "create tmp done.";
 
         CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_VIC, tmpLeft_, stereoLeft_, &convParams_));
         CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_VIC, tmpRight_, stereoRight_, &convParams_));
-        LOG(INFO) << "create stereo done.";
-
+#elif USING_BACKEND == 1
+        CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_CUDA, inLeft_, stereoLeft_, &convParams_));
+        CHECK_STATUS(vpiSubmitConvertImageFormat(stream_, VPI_BACKEND_CUDA, inRight_, stereoRight_, &convParams_));
+#endif
         // Submit it with the input and output images
         CHECK_STATUS(vpiSubmitStereoDisparityEstimator(stream_, backend_, stereo_, stereoLeft_, stereoRight_, disparity_, confidenceMap_, NULL));
-        LOG(INFO) << "submit stereo done.";
         // Wait for processing to finish.
         CHECK_STATUS(vpiStreamSync(stream_));
-        LOG(INFO) << "stream sync done.";
 
         average_us_ += (current_micros() - start_us);
         std::vector<float> errors(12, 0.0f);
         // Make an OpenCV matrix out of this image
         cv::Mat cvDisparity(left_img.size(), CV_32FC1);
-        cv::Mat cvConfidence(left_img.size(), CV_16UC1);
+        cv::Mat cvConfidence(left_img.size(), CV_16UC1, 65535);
 
         if(enable_calc){
             std::shared_ptr<DisparityImage> gt_ptr = load_stereo_gt(img_pair["gt_img"]);
@@ -285,11 +309,13 @@ public:
             // Done handling output, don't forget to unlock it.
             CHECK_STATUS(vpiImageUnlock(disparity_));
 
-            CHECK_STATUS(vpiImageLockData(confidenceMap_, VPI_LOCK_READ, VPI_IMAGE_BUFFER_HOST_PITCH_LINEAR, &data));
-            CHECK_STATUS(vpiImageDataExportOpenCVMat(data, &cvConfidence));
+            if(confidenceMap_){
+                CHECK_STATUS(vpiImageLockData(confidenceMap_, VPI_LOCK_READ, VPI_IMAGE_BUFFER_HOST_PITCH_LINEAR, &data));
+                CHECK_STATUS(vpiImageDataExportOpenCVMat(data, &cvConfidence));
 
-            // Confidence map varies from 0 to 65535
-            CHECK_STATUS(vpiImageUnlock(confidenceMap_));
+                // Confidence map varies from 0 to 65535
+                CHECK_STATUS(vpiImageUnlock(confidenceMap_));
+            }
 
             STEREO_WRAPPER_t stereo_wrapper = wrap_stereo(left_img.rows, left_img.cols, cvDisparity, cvConfidence, gt_ptr);
             errors = calc_stereo_error(gt_ptr, stereo_wrapper);
